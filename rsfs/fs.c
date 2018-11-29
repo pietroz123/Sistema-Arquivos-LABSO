@@ -109,9 +109,26 @@ int fs_free() {
 }
 
 /* pega o diretorio, varre as 128 entradas e concatena no buffer */
+/* Formato: NOME\t\tTAMANHO\n */ 
 int fs_list(char *buffer, int size) {
-	printf("Função não implementada: fs_list\n");
-	return 0;
+	
+	// Zera o buffer
+	memset(buffer, 0, CLUSTERSIZE);
+	char *tamanho = NULL;
+
+	int i = 0;
+	while (i < 128) {
+		if (dir[i].used == 1) {
+			strcat(buffer, dir[i].name);
+			strcat(buffer, "\t\t");
+			sprintf(tamanho, "%d", dir[i].size);
+			strcat(buffer, tamanho);
+			strcat(buffer, "\n");
+		}
+		i++;
+	}
+	
+	return 1;
 }
 
 int fs_create(char *file_name) {
