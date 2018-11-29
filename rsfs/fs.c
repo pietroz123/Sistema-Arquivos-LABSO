@@ -76,7 +76,7 @@ int fs_format() {
 		}
 	}
 
-	buffer = (dir_entry*) dir;
+	buffer = (char*) dir;
 
 	/* Salva o diretório */
 	int j =0;
@@ -94,8 +94,18 @@ int fs_format() {
 
 /* pega a fat e varre todos os campos marcados como 1 (livres) */
 int fs_free() {
-	printf("Função não implementada: fs_free\n");
-	return 0;
+
+	int espaco_livre = 0;
+
+	int i = 33;
+	while (i < 65536) {
+		if (fat[i] == 1)
+			espaco_livre++;
+	}
+
+	espaco_livre *= CLUSTERSIZE;
+
+	return espaco_livre;
 }
 
 /* pega o diretorio, varre as 128 entradas e concatena no buffer */
