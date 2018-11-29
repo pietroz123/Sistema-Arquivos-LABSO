@@ -27,8 +27,10 @@
 #include "fs.h"
 
 #define CLUSTERSIZE 4096
+#define TAMANHO_FAT 65536
 
-unsigned short fat[65536];			/* FAT */
+unsigned short fat[TAMANHO_FAT];			/* FAT */
+
 
 typedef struct {
 	char used;						/* booleano que indica se a entrada está em uso */
@@ -38,6 +40,39 @@ typedef struct {
 } dir_entry; // 32 bytes
 
 dir_entry dir[128];					/* diretório */
+
+
+int salvar_fat() {
+
+	char *buffer = (char*) fat;
+	int i;
+
+	/* Salva o FAT no buffer */
+	for (i = 0; i < 32*8; i++) {
+		if (!bl_write(i, buffer + i*512)) {
+			printf("Erro: Falha ao escrever no disco!\n");
+			return 0;
+		}
+	}
+
+}
+
+int salvar_dir () {
+
+	char *buffer = (char*) dir;
+	int i;
+
+	/* Salva o diretório */
+	int j = 0;
+	for (i = 32*8; i < 33*8; i++, j++) {
+		if (!bl_write(i, buffer + j*512)) {
+			printf("Erro: Falha ao escrever no disco!\n");
+			return 0;
+		}
+	}
+
+}
+
 
 /* carrega a fat e o diretório */
 int fs_init() {
@@ -49,7 +84,6 @@ int fs_init() {
 int fs_format() {
 	
 	int i;
-	char *buffer;
 
 	/* Formata a FAT */
 	for (i = 0; i < 32; i++) {
@@ -57,7 +91,7 @@ int fs_format() {
 	}
 	fat[i] = 4;
 	i++;
-	for (;i < 65536; i++) {
+	for (;i < TAMANHO_FAT; i++) {
 		fat[i] = 1;
 	}
 
@@ -66,29 +100,16 @@ int fs_format() {
 		dir[i].used = 0;
 	}
 
-	buffer = (char*) fat;
+	/* Salva a FAT e o diretório */
+	int resFAT = salvar_fat();
+	if (resFAT == 0)
+		return 0;
 
-	/* Salva o FAT no buffer */
-	for (i = 0; i < 32*8; i++) {
-		if (!bl_write(i, buffer + i*512)) {
-			printf("Erro\n"); //todo
-			return 0;
-		}
-	}
-
-	buffer = (char*) dir;
-
-	/* Salva o diretório */
-	int j =0;
-	for (i = 32*8; i < 33*8; i++, j++) {
-		if (!bl_write(i, buffer + j*512)) {
-			printf("Erro\n");
-			return 0;
-		}
-	}
+	int resDIR = salvar_dir();
+	if (resDIR == 0)
+		return 0;
 
 
-	// printf("Função não implementada: fs_format\n");
 	return 1;
 }
 
@@ -98,7 +119,7 @@ int fs_free() {
 	int espaco_livre = 0;
 
 	int i = 33;
-	while (i < 65536) {
+	while (i < TAMANHO_FAT) {
 		if (fat[i] == 1)
 			espaco_livre++;
 	}
@@ -133,7 +154,61 @@ int fs_list(char *buffer, int size) {
 
 int fs_create(char *file_name) {
 	printf("Função não implementada: fs_create\n");
-	return 0;
+
+	int i = 0;
+
+	/* Utilizamos uma flag verificar se há ou não espaço livre no diretório e, caso haja, armazenar esta posição */
+	int posicao = -1;
+
+
+	/* Verifica se o arquivo já existe */
+	while (i < 128) {
+		if (strcmp(file_name, dir[i].name) == 0) {
+			if (dir[i].used == 1) {
+				printf("Erro: Arquivo '%s' ja existente!\n", file_name);
+				return 0;
+			}
+		}
+		if (posicao == -1 && dir[i].used == 0)
+			posicao = i;
+	}
+
+	/* Verifica se o diretório está cheio */
+	if (posicao == -1) {
+		printf("Erro: Diretorio cheio!\n");
+		return 0;
+	}
+
+
+	// Insere o arquivo no diretório com nome file_name e tamanho 0
+	dir[posicao].used = 1;
+	strcpy(dir[posicao].name, file_name);
+	dir[posicao].size = 0;
+
+
+	/* Atualiza a FAT */
+	i = 33;
+	while (i < TAMANHO_FAT) {
+		if (fat[i] == 1) {
+			fat[i] = 2;
+			dir[posicao].first_block = i; // Marca no diretório o primeiro bloco do arquivo
+			break;
+		}
+		
+		i++;
+	}
+
+	/* Salva a FAT e o diretório */
+	int resFAT = salvar_fat();
+	if (resFAT == 0)
+		return 0;
+
+	int resDIR = salvar_dir();
+	if (resDIR == 0)
+		return 0;
+
+
+	return 1;
 }
 
 int fs_remove(char *file_name) {
