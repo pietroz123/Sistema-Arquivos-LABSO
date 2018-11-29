@@ -155,7 +155,6 @@ int fs_list(char *buffer, int size) {
 }
 
 int fs_create(char *file_name) {
-	printf("Função não implementada: fs_create\n");
 
 	int i = 0;
 
@@ -215,7 +214,54 @@ int fs_create(char *file_name) {
 
 int fs_remove(char *file_name) {
 	printf("Função não implementada: fs_remove\n");
-	return 0;
+
+	int i = 0;
+	int achou = 0;
+
+	/* Procura o arquivo no diretório */
+	while(i < 128) {
+		if (strcmp(dir[i].name, file_name) == 0)
+			if (dir[i].used == 1) {
+				achou = 1;
+				break;
+			}
+		i++;
+	}
+
+	/* Se não achou, retorna erro */
+	if (achou == 0) {
+		printf("Erro: Arquivo inexistente!\n");
+		return 0;
+	}
+
+	int posicao = i;
+
+	/* Zera no diretório as informações do arquiv */
+	dir[posicao].used = 0;
+	memset(dir[posicao].name, 0, 25);
+
+
+	/* Marca todos blocos daquele arquivo como Agrupamento Livre */
+	i = dir[posicao].first_block;
+	while (fat[i] != 2) {
+		posicao = fat[i];
+		fat[i] = 1;
+		i = posicao;
+	}
+	fat[i] = 1;	// Zera a última posição
+
+
+	/* Salva a FAT e o diretório */
+	int resFAT = salvar_fat();
+	if (resFAT == 0)
+		return 0;
+
+	int resDIR = salvar_dir();
+	if (resDIR == 0)
+		return 0;
+
+
+	return 1;
 }
 
 int fs_open(char *file_name, int mode) {
