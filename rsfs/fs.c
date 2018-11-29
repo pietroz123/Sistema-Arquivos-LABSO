@@ -55,6 +55,7 @@ int salvar_fat() {
 		}
 	}
 
+	return 1;
 }
 
 int salvar_dir () {
@@ -71,6 +72,7 @@ int salvar_dir () {
 		}
 	}
 
+	return 1;
 }
 
 
