@@ -20,6 +20,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
+/**
+ * 	Membros do grupo:
+ * 
+ * 		Bianca Gomes Rodrigues			743512
+ * 		Pietro Zuntini Bonfim			743588
+ * 		Pedro de Souza Vieira Coelho	743585
+ * 		Vinícius Brandão Crepschi		743601
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 
@@ -40,6 +51,8 @@ typedef struct {
 } dir_entry; // 32 bytes
 
 dir_entry dir[128];					/* diretório */
+
+int flagFormatado = 0;
 
 
 int salvar_fat() {
@@ -76,14 +89,65 @@ int salvar_dir () {
 }
 
 
+int recuperar_fat()	{
+
+	char *buffer = (char*) fat;
+	int i;
+
+	/* Salva o FAT no buffer */
+	for (i = 0; i < 32*8; i++) {
+		if (!bl_read(i, buffer + i*512)) {
+			printf("Erro: Falha ao ler do disco!\n");
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
+int recuperar_dir() {
+
+	char *buffer = (char*) dir;
+	int i;
+
+	/* Salva o diretório */
+	int j = 0;
+	for (i = 32*8; i < 33*8; i++, j++) {
+		if (!bl_read(i, buffer + j*512)) {
+			printf("Erro: Falha ao recuperar no disco!\n");
+			return 0;
+		}
+	}
+
+	return 1;
+}
+
 /* carrega a fat e o diretório */
 int fs_init() {
-	printf("Função não implementada: fs_init\n");
+
+
+	/* Recupera a FAT e o diretório */
+	int resFAT = recuperar_fat();
+	if (resFAT == 0)
+		return 0;
+
+	int resDIR = recuperar_dir();
+	if (resDIR == 0)
+		return 0;
+
+	int i;
+	for (i = 0; i < 32; i++) {
+		if (fat[i] != 3) {
+			flagFormatado = 0;
+		}
+	}
+
 	return 1;
 }
 
 /* cria novas estruturas na memória e as escreve no disco */
 int fs_format() {
+
 	
 	int i;
 
@@ -107,16 +171,19 @@ int fs_format() {
 	if (resFAT == 0)
 		return 0;
 
+
 	int resDIR = salvar_dir();
 	if (resDIR == 0)
 		return 0;
 
 
+	flagFormatado = 1;
 	return 1;
 }
 
 /* pega a fat e varre todos os campos marcados como 1 (livres) */
 int fs_free() {
+
 
 	int espaco_livre = 0;
 
@@ -124,6 +191,7 @@ int fs_free() {
 	while (i < TAMANHO_FAT) {
 		if (fat[i] == 1)
 			espaco_livre++;
+		i++;
 	}
 
 	espaco_livre *= CLUSTERSIZE;
@@ -136,8 +204,9 @@ int fs_free() {
 int fs_list(char *buffer, int size) {
 	
 	// Zera o buffer
-	memset(buffer, 0, CLUSTERSIZE);
-	char *tamanho = NULL;
+	// memset(buffer, 0, size);
+	buffer[0] = '\0';
+	char tamanho[100];
 
 	int i = 0;
 	while (i < 128) {
@@ -150,7 +219,6 @@ int fs_list(char *buffer, int size) {
 		}
 		i++;
 	}
-	
 	return 1;
 }
 
@@ -172,6 +240,7 @@ int fs_create(char *file_name) {
 		}
 		if (posicao == -1 && dir[i].used == 0)
 			posicao = i;
+		i++;
 	}
 
 	/* Verifica se o diretório está cheio */
@@ -213,7 +282,6 @@ int fs_create(char *file_name) {
 }
 
 int fs_remove(char *file_name) {
-	printf("Função não implementada: fs_remove\n");
 
 	int i = 0;
 	int achou = 0;
@@ -264,21 +332,32 @@ int fs_remove(char *file_name) {
 	return 1;
 }
 
+/* Abre um arquivo pra leitura (FS_R) ou escrita (FS_W) */
+/* leitura: cabeça no byte 0 e vai lendo até o último bloco */
+/* escrita: zera o arquivo, cabeça no byte 0 e vai até o final */
 int fs_open(char *file_name, int mode) {
 	printf("Função não implementada: fs_open\n");
 	return -1;
 }
 
+/* recebe o inteiro que identifica o arquivo aberto */
+/* libera o que alocamos no open */
 int fs_close(int file) {
 	printf("Função não implementada: fs_close\n");
 	return 0;
 }
 
+/* carrega do buffer para a memória */
+/* bl_write sempre buffer de 512 bytes, aqui o buffer é de quanto quisermos */
+/* retorna a quantidade de bytes escritos */
 int fs_write(char *buffer, int size, int file) {
 	printf("Função não implementada: fs_write\n");
 	return -1;
 }
 
+/* carrega da memória para o buffer */
+/* detalhe: precisamos verificar se o tamanho que queremos ler cabe no tamanho do arquivo */
+/* retorna quantidade de bytes EFETIVAMENTE lidos */
 int fs_read(char *buffer, int size, int file) {
 	printf("Função não implementada: fs_read\n");
 	return -1;
