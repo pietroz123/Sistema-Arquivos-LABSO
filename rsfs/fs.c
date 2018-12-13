@@ -54,6 +54,13 @@ dir_entry dir[128];					/* diretório */
 
 int flagFormatado = 0;
 
+typedef struct {
+	int estado;
+	unsigned short block;
+	char conteudo[CLUSTERSIZE+1];
+} arquivo;
+
+arquivo arq[128];
 
 int salvar_fat() {
 
@@ -336,7 +343,42 @@ int fs_remove(char *file_name) {
 /* leitura: cabeça no byte 0 e vai lendo até o último bloco */
 /* escrita: zera o arquivo, cabeça no byte 0 e vai até o final */
 int fs_open(char *file_name, int mode) {
-	printf("Função não implementada: fs_open\n");
+	//printf("Função não implementada: fs_open\n");
+
+	int i;
+	for(i = 0; i < 128; i++){
+		if(strcmp(dir[i].name, file_name) == 0){
+			break;
+		}
+	}
+
+	if (i == 128)
+		return -1;
+
+	if(mode == FS_R){
+		arq[i].block = dir[i].first_block;
+		//Estado Aberto
+		arq[i].estado = 1;
+		return i;
+	}
+	else if(mode == FS_W){
+		if(fs_remove(file_name) == 0){
+			printf("Não foi possível sobrescrever o arquivo!\n");
+			return -1;
+		}
+		if(fs_create(file_name) == 0){
+			printf("Não foi possível sobrescrever o arquivo!\n");
+			return -1;
+		}
+
+		arq[i].block = dir[i].first_block;
+		//Estado Aberto
+		arq[i].estado = 1;
+		return i;
+
+	}
+
+	printf("Modo inválido de operação!\n");
 	return -1;
 }
 
@@ -351,7 +393,11 @@ int fs_close(int file) {
 /* bl_write sempre buffer de 512 bytes, aqui o buffer é de quanto quisermos */
 /* retorna a quantidade de bytes escritos */
 int fs_write(char *buffer, int size, int file) {
-	printf("Função não implementada: fs_write\n");
+	// printf("Função não implementada: fs_write\n");
+	
+	
+	
+	
 	return -1;
 }
 
