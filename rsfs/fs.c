@@ -225,7 +225,7 @@ int fs_free() {
 	int espaco_livre = 0;
 
 	int i = 33;
-	while (i < TAMANHO_FAT) {
+	while (i < bl_size()/8) {
 		if (fat[i] == 1)
 			espaco_livre++;
 		i++;
@@ -295,7 +295,7 @@ int fs_create(char *file_name) {
 
 	/* Atualiza a FAT */
 	i = 33;
-	while (i < TAMANHO_FAT) {
+	while (i < bl_size()/8) {
 		if (fat[i] == 1) {
 			fat[i] = 2;
 			dir[posicao].first_block = i; // Marca no diretório o primeiro bloco do arquivo
