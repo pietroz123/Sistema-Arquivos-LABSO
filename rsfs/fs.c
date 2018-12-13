@@ -52,22 +52,27 @@ typedef struct {
 
 dir_entry dir[128];					/* diretório */
 
+
 int flagFormatado = 0;
+
 
 typedef struct {
 	int estado;
 	unsigned short block;
 	char conteudo[CLUSTERSIZE+1];
+	int tamanho_atual;
 } arquivo;
 
 arquivo arq[128];
 
+
+/* Funcoes de auxílio */
 int salvar_fat() {
 
 	char *buffer = (char*) fat;
 	int i;
 
-	/* Salva o FAT no buffer */
+	/* Salva a FAT no buffer */
 	for (i = 0; i < 32*8; i++) {
 		if (!bl_write(i, buffer + i*512)) {
 			printf("Erro: Falha ao escrever no disco!\n");
@@ -95,6 +100,16 @@ int salvar_dir () {
 	return 1;
 }
 
+int salvar_disk( int posicao) {
+
+	for(int i = 0; i < 8; i++){
+		if(bl_write(arq[posicao].block * 8 + i, arq[posicao].conteudo[i*512]) == 0){
+			return -1;
+		}
+	}
+	return 1;
+
+}
 
 int recuperar_fat()	{
 
@@ -104,7 +119,6 @@ int recuperar_fat()	{
 	/* Salva o FAT no buffer */
 	for (i = 0; i < 32*8; i++) {
 		if (!bl_read(i, buffer + i*512)) {
-			printf("Erro: Falha ao ler do disco!\n");
 			return 0;
 		}
 	}
@@ -121,7 +135,6 @@ int recuperar_dir() {
 	int j = 0;
 	for (i = 32*8; i < 33*8; i++, j++) {
 		if (!bl_read(i, buffer + j*512)) {
-			printf("Erro: Falha ao recuperar no disco!\n");
 			return 0;
 		}
 	}
@@ -129,18 +142,35 @@ int recuperar_dir() {
 	return 1;
 }
 
+// Retorna a posicao do arquivo com nome file_name no diretorio
+int buscar_arquivo(char *file_name) {
+
+	int posicao;
+	for(posicao = 0; posicao < 128; posicao++){
+		if(strcmp(dir[posicao].name, file_name) == 0){
+			break;
+		}
+	}
+	
+	return posicao;
+
+}
+
 /* carrega a fat e o diretório */
 int fs_init() {
 
 
 	/* Recupera a FAT e o diretório */
-	int resFAT = recuperar_fat();
-	if (resFAT == 0)
+	if (!recuperar_fat()) {
+		printf("Erro: Falha ao ler do disco!\n");
 		return 0;
+	}
 
-	int resDIR = recuperar_dir();
-	if (resDIR == 0)
+	if (!recuperar_dir()) {
+		printf("Erro: Falha ao ler do disco!\n");
 		return 0;
+	}
+
 
 	int i;
 	for (i = 0; i < 32; i++) {
@@ -359,6 +389,7 @@ int fs_open(char *file_name, int mode) {
 		arq[i].block = dir[i].first_block;
 		//Estado Aberto
 		arq[i].estado = 1;
+		arq[i].tamanho_atual = 0;
 		return i;
 	}
 	else if(mode == FS_W){
@@ -374,6 +405,7 @@ int fs_open(char *file_name, int mode) {
 		arq[i].block = dir[i].first_block;
 		//Estado Aberto
 		arq[i].estado = 1;
+		arq[i].tamanho_atual = 0;
 		return i;
 
 	}
@@ -393,12 +425,48 @@ int fs_close(int file) {
 /* bl_write sempre buffer de 512 bytes, aqui o buffer é de quanto quisermos */
 /* retorna a quantidade de bytes escritos */
 int fs_write(char *buffer, int size, int file) {
-	// printf("Função não implementada: fs_write\n");
 	
+	dir[file].size += size;
 	
-	
-	
-	return -1;
+	// Verifica se o arquivo está aberto
+	if (arq[file].estado == 0){
+		printf("Arquivo não está aberto!\n");
+		return -1;
+	}
+	else{
+		if(arq[file].tamanho_atual + size < CLUSTERSIZE){
+			strcat(arq[file].conteudo, buffer);
+			arq[file].tamanho_atual += size;
+			
+			memset(buffer, 0, size);
+		}
+		else{
+			strncat(arq[file].conteudo, buffer, CLUSTERSIZE - arq[file].tamanho_atual);
+			memset(buffer, 0, size);
+
+			if(salvar_disk(file) == -1){
+				printf("Erro ao escrever no disco!\n");
+				return -1;
+			}
+			memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
+
+			strcat(arq[file].conteudo, buffer);
+
+		}
+
+
+	}
+
+	/* Salva a FAT e o diretório */
+	int resFAT = salvar_fat();
+	if (resFAT == 0)
+		return -1;
+
+
+	int resDIR = salvar_dir();
+	if (resDIR == 0)
+		return -1;
+
 }
 
 /* carrega da memória para o buffer */
