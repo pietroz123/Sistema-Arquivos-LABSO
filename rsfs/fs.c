@@ -40,6 +40,14 @@
 #define CLUSTERSIZE 4096
 #define TAMANHO_FAT 65536
 
+#define ABERTO	1
+#define FECHADO 0
+
+#define AGRUPAMENTO_LIVRE 	1
+#define ULTIMO_AGRUPAMENTO 	2
+#define AGRUPAMENTO_FAT 	3
+#define AGRUPAMENTO_DIR 	4
+
 unsigned short fat[TAMANHO_FAT];			/* FAT */
 
 
@@ -58,9 +66,10 @@ int flagFormatado = 0;
 
 typedef struct {
 	int estado;
-	unsigned short block;
+	unsigned short first_block;
 	char conteudo[CLUSTERSIZE+1];
-	int tamanho_atual;
+	int tamanho;
+	int n_blocos;
 } arquivo;
 
 arquivo arq[128];
@@ -103,7 +112,7 @@ int salvar_dir () {
 int salvar_disk( int posicao) {
 
 	for(int i = 0; i < 8; i++){
-		if(bl_write(arq[posicao].block * 8 + i, arq[posicao].conteudo[i*512]) == 0){
+		if(bl_write(arq[posicao].first_block * 8 + i, arq[posicao].conteudo[i*512]) == 0){
 			return -1;
 		}
 	}
@@ -348,12 +357,12 @@ int fs_remove(char *file_name) {
 
 	/* Marca todos blocos daquele arquivo como Agrupamento Livre */
 	i = dir[posicao].first_block;
-	while (fat[i] != 2) {
+	while (fat[i] != ULTIMO_AGRUPAMENTO) {
 		posicao = fat[i];
-		fat[i] = 1;
+		fat[i] = AGRUPAMENTO_LIVRE;
 		i = posicao;
 	}
-	fat[i] = 1;	// Zera a última posição
+	fat[i] = AGRUPAMENTO_LIVRE;	// Zera a última posição
 
 
 	/* Salva a FAT e o diretório */
@@ -373,23 +382,17 @@ int fs_remove(char *file_name) {
 /* leitura: cabeça no byte 0 e vai lendo até o último bloco */
 /* escrita: zera o arquivo, cabeça no byte 0 e vai até o final */
 int fs_open(char *file_name, int mode) {
-	//printf("Função não implementada: fs_open\n");
 
-	int i;
-	for(i = 0; i < 128; i++){
-		if(strcmp(dir[i].name, file_name) == 0){
-			break;
-		}
-	}
+	int i = buscar_arquivo(file_name);
 
 	if (i == 128)
 		return -1;
 
 	if(mode == FS_R){
-		arq[i].block = dir[i].first_block;
+		arq[i].first_block = dir[i].first_block;
 		//Estado Aberto
-		arq[i].estado = 1;
-		arq[i].tamanho_atual = 0;
+		arq[i].estado = ABERTO;
+		arq[i].tamanho = dir[i].size;
 		return i;
 	}
 	else if(mode == FS_W){
@@ -402,10 +405,10 @@ int fs_open(char *file_name, int mode) {
 			return -1;
 		}
 
-		arq[i].block = dir[i].first_block;
+		arq[i].first_block = dir[i].first_block;
 		//Estado Aberto
-		arq[i].estado = 1;
-		arq[i].tamanho_atual = 0;
+		arq[i].estado = ABERTO;
+		arq[i].tamanho = 0;
 		return i;
 
 	}
@@ -426,45 +429,100 @@ int fs_close(int file) {
 /* retorna a quantidade de bytes escritos */
 int fs_write(char *buffer, int size, int file) {
 	
-	dir[file].size += size;
 	
 	// Verifica se o arquivo está aberto
-	if (arq[file].estado == 0){
+	if (arq[file].estado == FECHADO){
 		printf("Arquivo não está aberto!\n");
 		return -1;
 	}
-	else{
-		if(arq[file].tamanho_atual + size < CLUSTERSIZE){
-			strcat(arq[file].conteudo, buffer);
-			arq[file].tamanho_atual += size;
-			
-			memset(buffer, 0, size);
+
+	dir[file].size += size;
+
+	//Procurar pelo último bloco do arquivo
+	int i = arq[file].first_block;
+	while (fat[i] != ULTIMO_AGRUPAMENTO){	
+		i = fat[i];
+	}
+	int ultimo_agrupamento = i;
+
+
+
+	int tamanho_ultimo = arq[file].tamanho % CLUSTERSIZE;
+	while (tamanho_ultimo >= CLUSTERSIZE) {
+
+		// Calcula o tamanho efetivo
+		int size_efetivo = CLUSTERSIZE - tamanho_ultimo;
+
+		// Escreve o que cabe no conteúdo do arquivo
+		int k = 0;
+		for(int j = tamanho_ultimo; j < CLUSTERSIZE; j++, k++)
+			arq[file].conteudo[j] = buffer[k];
+
+		// Salva no disco
+		if(salvar_disk(file) == -1){
+			printf("Erro ao escrever no disco!\n");
+			return -1;
 		}
-		else{
-			strncat(arq[file].conteudo, buffer, CLUSTERSIZE - arq[file].tamanho_atual);
-			memset(buffer, 0, size);
 
-			if(salvar_disk(file) == -1){
-				printf("Erro ao escrever no disco!\n");
-				return -1;
-			}
-			memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
+		memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
 
-			strcat(arq[file].conteudo, buffer);
+		//Implementar for
+		strcat(arq[file].conteudo, buffer);
 
+
+		// Procura por um agrupamento livre na FAT
+		while (fat[i] != AGRUPAMENTO_LIVRE) {
+			i++;
 		}
-
+		fat[i] = ULTIMO_AGRUPAMENTO;
+		fat[ultimo_agrupamento] = i;
+		ultimo_agrupamento = i;
 
 	}
 
+	// strncat(arq[file].conteudo, buffer, size);
+	int j = arq[file].tamanho;
+	for(int k = 0; k < size; k++, j++)
+		arq[file].conteudo[j] = buffer[k];
+
+
+	arq[file].tamanho += size;
+	
+	return size;
+
+
+	// if(arq[file].tamanho + size < CLUSTERSIZE){
+	// 	strncat(arq[file].conteudo, buffer, size);
+	// 	arq[file].tamanho += size;
+		
+	// 	return size;
+	// }
+	// else{
+	// 	int size_efetivo = CLUSTERSIZE - arq[file].tamanho;
+	// 	strncat(arq[file].conteudo, buffer, size_efetivo);
+
+	// 	memset(buffer, 0, size);
+
+	// 	if(salvar_disk(file) == -1){
+	// 		printf("Erro ao escrever no disco!\n");
+	// 		return -1;
+	// 	}
+
+	// 	//Procurar um bloco livre na fat
+
+
+	// 	memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
+
+	// 	strcat(arq[file].conteudo, buffer);
+	// 	return size_efetivo;
+	// }
+
+
 	/* Salva a FAT e o diretório */
-	int resFAT = salvar_fat();
-	if (resFAT == 0)
+	if (salvar_fat() == 0)
 		return -1;
 
-
-	int resDIR = salvar_dir();
-	if (resDIR == 0)
+	if (salvar_dir() == 0)
 		return -1;
 
 }
