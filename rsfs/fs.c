@@ -84,7 +84,6 @@ int salvar_fat() {
 	/* Salva a FAT no buffer */
 	for (i = 0; i < 32*8; i++) {
 		if (!bl_write(i, buffer + i*512)) {
-			printf("Erro: Falha ao escrever no disco!\n");
 			return 0;
 		}
 	}
@@ -101,7 +100,6 @@ int salvar_dir () {
 	int j = 0;
 	for (i = 32*8; i < 33*8; i++, j++) {
 		if (!bl_write(i, buffer + j*512)) {
-			printf("Erro: Falha ao escrever no disco!\n");
 			return 0;
 		}
 	}
@@ -213,14 +211,15 @@ int fs_format() {
 	}
 
 	/* Salva a FAT e o diretório */
-	int resFAT = salvar_fat();
-	if (resFAT == 0)
+	if (salvar_fat() == 0) {
+		printf("Erro: Falha ao escrever no disco!\n");
 		return 0;
+	}
 
-
-	int resDIR = salvar_dir();
-	if (resDIR == 0)
+	if (salvar_dir() == 0) {
+		printf("Erro: Falha ao escrever no disco!\n");
 		return 0;
+	}
 
 
 	flagFormatado = 1;
@@ -315,13 +314,15 @@ int fs_create(char *file_name) {
 	}
 
 	/* Salva a FAT e o diretório */
-	int resFAT = salvar_fat();
-	if (resFAT == 0)
+	if (salvar_fat() == 0) {
+		printf("Erro: Falha ao escrever no disco!\n");
 		return 0;
+	}
 
-	int resDIR = salvar_dir();
-	if (resDIR == 0)
+	if (salvar_dir() == 0) {
+		printf("Erro: Falha ao escrever no disco!\n");
 		return 0;
+	}
 
 
 	return 1;
@@ -366,13 +367,15 @@ int fs_remove(char *file_name) {
 
 
 	/* Salva a FAT e o diretório */
-	int resFAT = salvar_fat();
-	if (resFAT == 0)
+	if (salvar_fat() == 0) {
+		printf("Erro: Falha ao escrever no disco!\n");
 		return 0;
+	}
 
-	int resDIR = salvar_dir();
-	if (resDIR == 0)
+	if (salvar_dir() == 0) {
+		printf("Erro: Falha ao escrever no disco!\n");
 		return 0;
+	}
 
 
 	return 1;
