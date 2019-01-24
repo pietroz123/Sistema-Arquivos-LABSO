@@ -179,29 +179,21 @@ void copy(char *file1, char *file2) {
 	if ((fd1 = fs_open(file1, FS_R)) == -1) {
 		return;
 	}
-	printf("open\n");
 
 	if ((fd2 = fs_open(file2, FS_W)) == -1) {
 		fs_close(fd1);
-		printf("close\n");
 		return;
 	}
-	printf("antes read\n");
 	while ((read = fs_read(buffer, COPY_BUFFER_SIZE, fd1)) > 0) {
 		if (fs_write(buffer, read, fd2) != read) {
-			printf("write\n");
 			fs_close(fd1);
 			fs_close(fd2);
 			return;
 		}
 	}
-	printf("saiu\n");
 
-	printf("antes close fd1\n");
 	fs_close(fd1);
-	printf("close fd1\n");
 	fs_close(fd2);
-	printf("close fd22\n");
 }
 
 void copyf(char *file1, char *file2) {

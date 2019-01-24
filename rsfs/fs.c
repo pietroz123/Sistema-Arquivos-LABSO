@@ -110,7 +110,7 @@ int salvar_dir () {
 int salvar_disk( int posicao, int bloco_atual) {
 
 	for(int i = 0; i < 8; i++){
-		if(bl_write(bloco_atual * 8 + i, arq[posicao].conteudo[i*512]) == 0){
+		if(bl_write(bloco_atual * 8 + i, &arq[posicao].conteudo[i*512]) == 0){
 			return -1;
 		}
 		// if (bloco_atual == ULTIMO_AGRUPAMENTO)
@@ -123,17 +123,16 @@ int salvar_disk( int posicao, int bloco_atual) {
 }
 
 
-int ler_disk( int posicao) {
+int ler_disk( int posicao, int bloco_atual) {
 
-	int bloco_atual = arq[posicao].first_block;
 	for(int i = 0; i < 8; i++){
-		if(bl_read(bloco_atual * 8 + i, arq[posicao].conteudo[i*512]) == 0){
+		if(bl_read(bloco_atual * 8 + i, &arq[posicao].conteudo[i*512]) == 0){
 			return -1;
 		}
-		if (bloco_atual == ULTIMO_AGRUPAMENTO)
-			break;
-		else
-			bloco_atual = fat[bloco_atual];
+		// if (bloco_atual == ULTIMO_AGRUPAMENTO)
+		// 	break;
+		// else
+		// 	bloco_atual = fat[bloco_atual];
 	}
 	return 1;
 
@@ -321,17 +320,27 @@ int fs_create(char *file_name) {
 	dir[posicao].size = 0;
 
 
+
+
 	/* Atualiza a FAT */
 	i = 33;
 	while (i < bl_size()/8) {
-		if (fat[i] == 1) {
-			fat[i] = 2;
+		if (fat[i] == AGRUPAMENTO_LIVRE) {
+			fat[i] = ULTIMO_AGRUPAMENTO;
 			dir[posicao].first_block = i; // Marca no diretório o primeiro bloco do arquivo
 			break;
 		}
 		
 		i++;
 	}
+
+
+	// Atualiza as informações do arquivo
+	arq[posicao].estado = FECHADO;
+	arq[posicao].first_block = i;
+	arq[posicao].n_blocos = 1;
+	arq[posicao].tamanho = 0;
+
 
 	/* Salva a FAT e o diretório */
 	if (salvar_fat() == 0) {
@@ -422,11 +431,11 @@ int fs_open(char *file_name, int mode) {
 	}
 	else if(mode == FS_W){
 		if(fs_remove(file_name) == 0){
-			printf("Não foi possível sobrescrever o arquivo!\n");
+			printf("Não foi possível remover o arquivo!\n");
 			return -1;
 		}
 		if(fs_create(file_name) == 0){
-			printf("Não foi possível sobrescrever o arquivo!\n");
+			printf("Não foi possível criar o arquivo!\n");
 			return -1;
 		}
 
@@ -523,10 +532,6 @@ int fs_write(char *buffer, int size, int file) {
 
 		memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
 
-		// //Implementar for
-		// strcat(arq[file].conteudo, buffer);
-
-
 		// Procura por um agrupamento livre na FAT
 		i = 0;
 		while (fat[i] != AGRUPAMENTO_LIVRE && i < TAMANHO_FAT) {
@@ -535,6 +540,8 @@ int fs_write(char *buffer, int size, int file) {
 		fat[i] = ULTIMO_AGRUPAMENTO;
 		fat[ultimo_agrupamento] = i;
 		ultimo_agrupamento = i;
+
+		arq[file].n_blocos++;
 
 	}
 
@@ -562,6 +569,7 @@ int fs_write(char *buffer, int size, int file) {
 /* detalhe: precisamos verificar se o tamanho que queremos ler cabe no tamanho do arquivo */
 /* retorna quantidade de bytes EFETIVAMENTE lidos */
 int fs_read(char *buffer, int size, int file) {
+
 	int byteslidos = 0;
 
 	// Verifica se o arquivo está aberto
@@ -570,17 +578,20 @@ int fs_read(char *buffer, int size, int file) {
 		// Limpa o buffer
 		memset(buffer, 0, size);
 
+		int bloco_atual = arq[file].first_block;
 
 		int i = 0;
+		int tamanho_bloco_atual = arq[file].tamanho % CLUSTERSIZE;
+
 		for (i = 0; i < size; i++) {
-			int tamanho_bloco_atual = arq[file].tamanho % CLUSTERSIZE;
-			if (tamanho_bloco_atual >= CLUSTERSIZE) {
-				if (ler_disk(file) == -1) {
-					printf("GUSTAVO PLS ISSO N  EH UM MEME NOS PRECISMAOS DE AJUDA PLSS PASSA NOIS NAO TEMOS MAIS SANIDADE MENTAL PARA CONTINUAR PLSSSS AJUDA\n");
+			if (tamanho_bloco_atual > CLUSTERSIZE) {
+				if (ler_disk(file, bloco_atual) == -1) {
+					printf("Erro na leitura\n");
 					return -1;
 				}
 				buffer[i] = arq[file].conteudo[i];
 			}
+			bloco_atual = fat[bloco_atual];
 		}
 		if (arq[file].tamanho == dir[file].size) {
 			return byteslidos;
