@@ -61,7 +61,7 @@ typedef struct {
 dir_entry dir[128];					/* diretório */
 
 
-int flagFormatado = 0;
+int flag_formatado = 0;
 
 
 typedef struct {
@@ -203,7 +203,7 @@ int fs_init() {
 	int i;
 	for (i = 0; i < 32; i++) {
 		if (fat[i] != 3) {
-			flagFormatado = 0;
+			flag_formatado = 0;
 		}
 	}
 
@@ -218,12 +218,12 @@ int fs_format() {
 
 	/* Formata a FAT */
 	for (i = 0; i < 32; i++) {
-		fat[i] = 3;
+		fat[i] = AGRUPAMENTO_FAT;
 	}
-	fat[i] = 4;
+	fat[i] = AGRUPAMENTO_DIR;
 	i++;
 	for (;i < TAMANHO_FAT; i++) {
-		fat[i] = 1;
+		fat[i] = AGRUPAMENTO_LIVRE;
 	}
 
 	/* Formata o diretório */
@@ -233,17 +233,17 @@ int fs_format() {
 
 	/* Salva a FAT e o diretório */
 	if (salvar_fat() == 0) {
-		printf("Erro: Falha ao escrever no disco!\n");
+		printf("Erro: Falha ao escrever na FAT!\n");
 		return 0;
 	}
 
 	if (salvar_dir() == 0) {
-		printf("Erro: Falha ao escrever no disco!\n");
+		printf("Erro: Falha ao escrever no Diretório!\n");
 		return 0;
 	}
 
 
-	flagFormatado = 1;
+	flag_formatado = 1;	// Marca como formatado
 	return 1;
 }
 
@@ -255,7 +255,7 @@ int fs_free() {
 
 	int i = 33;
 	while (i < bl_size()/8) {
-		if (fat[i] == 1)
+		if (fat[i] == AGRUPAMENTO_LIVRE)
 			espaco_livre++;
 		i++;
 	}
@@ -270,7 +270,6 @@ int fs_free() {
 int fs_list(char *buffer, int size) {
 	
 	// Zera o buffer
-	// memset(buffer, 0, size);
 	buffer[0] = '\0';
 	char tamanho[100];
 
