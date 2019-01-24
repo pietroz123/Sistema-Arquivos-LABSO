@@ -76,6 +76,20 @@ typedef struct {
 arquivo arq[128];
 
 
+//!
+void imprimir_fat() {
+	for (int i = 0; i < 100; i++) {
+		printf("[%d] : %d\n", i, fat[i]);
+	}
+}
+void imprimir_dir() {
+	printf("used | name | first_block | size\n");
+	for (int i = 0; i < 128; i++) {
+		printf("%c %s %d %d\n", dir[i].used, dir[i].name, dir[i].first_block, dir[i].size);
+	}
+}
+
+
 /* Funcoes de auxílio */
 int salvar_fat() {
 
@@ -224,7 +238,10 @@ int fs_format() {
 
 	/* Formata o diretório */
 	for (i = 0; i < 128; i++) {
-		dir[i].used = 0;
+		dir[i].used = 'N';
+		memset(dir[i].name, 0, 25);
+		dir[i].first_block = 0;
+		dir[i].size = 0;
 	}
 
 	/* Salva a FAT e o diretório */
@@ -271,7 +288,7 @@ int fs_list(char *buffer, int size) {
 
 	int i = 0;
 	while (i < 128) {
-		if (dir[i].used == 1) {
+		if (dir[i].used == 'S') {
 			strcat(buffer, dir[i].name);
 			strcat(buffer, "\t\t");
 			sprintf(tamanho, "%d", dir[i].size);
@@ -294,12 +311,12 @@ int fs_create(char *file_name) {
 	/* Verifica se o arquivo já existe */
 	while (i < 128) {
 		if (strcmp(file_name, dir[i].name) == 0) {
-			if (dir[i].used == 1) {
+			if (dir[i].used == 'S') {
 				printf("Erro: Arquivo '%s' ja existente!\n", file_name);
 				return 0;
 			}
 		}
-		if (posicao == -1 && dir[i].used == 0)
+		if (posicao == -1 && dir[i].used == 'N')
 			posicao = i;
 		i++;
 	}
@@ -312,7 +329,7 @@ int fs_create(char *file_name) {
 
 
 	// Insere o arquivo no diretório com nome file_name e tamanho 0
-	dir[posicao].used = 1;
+	dir[posicao].used = 'S';
 	strcpy(dir[posicao].name, file_name);
 	dir[posicao].size = 0;
 
@@ -362,7 +379,7 @@ int fs_remove(char *file_name) {
 	/* Procura o arquivo no diretório */
 	while(i < 128) {
 		if (strcmp(dir[i].name, file_name) == 0)
-			if (dir[i].used == 1) {
+			if (dir[i].used == 'S') {
 				achou = 1;
 				break;
 			}
@@ -378,7 +395,7 @@ int fs_remove(char *file_name) {
 	int posicao = i;
 
 	/* Zera no diretório as informações do arquiv */
-	dir[posicao].used = 0;
+	dir[posicao].used = 'N';
 	memset(dir[posicao].name, 0, 25);
 
 

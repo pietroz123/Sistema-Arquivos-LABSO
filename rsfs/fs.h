@@ -33,3 +33,8 @@ int fs_open(char *file_name, int mode);
 int fs_close(int file);
 int fs_write(char *buffer, int size, int file);
 int fs_read(char *buffer, int size, int file);
+
+
+//!
+void imprimir_fat();
+void imprimir_dir();

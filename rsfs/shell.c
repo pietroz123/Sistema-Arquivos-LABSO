@@ -143,6 +143,12 @@ int main(int argc, char **argv)
 				printf("Uso: copyt <file> <real_file>\n");
 			}
 		}
+		else if (!strcmp(args[0], "fat")) {
+			imprimir_fat();
+		}
+		else if (!strcmp(args[0], "dir")) {
+			imprimir_dir();
+		}
 		else {
 			printf("Comando inválido\n");
 		}
