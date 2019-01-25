@@ -545,7 +545,6 @@ int fs_write(char *buffer, int size, int file) {
 	int ultimo_agrupamento = i;
 	printf("ultimo agrupamento: %d\n", ultimo_agrupamento);
 	
-	char conteudo[50];
 	
 	int tamanho_ultimo = arq[file].tamanho % CLUSTERSIZE;
 	int bytes = 0;
@@ -555,9 +554,9 @@ int fs_write(char *buffer, int size, int file) {
 		bytes++;
 
 		// Concatena byte a byte no conteudo do arquivo
-        int len = strlen(conteudo);
-        conteudo[len] = c;
-        conteudo[len+1] = '\0';
+        int len = strlen(arq[file].conteudo);
+        arq[file].conteudo[len] = c;
+        arq[file].conteudo[len+1] = '\0';
 		
 
 		tamanho_ultimo++;	// Aumenta a quantidade de bytes no ultimo agrupamento
@@ -565,7 +564,7 @@ int fs_write(char *buffer, int size, int file) {
 
 	}
 	
-	printf("conteudo: %s\n", conteudo);
+	printf("conteudo: %s\n", arq[file].conteudo);
 	printf("tamanho_ultimo: %d\n", tamanho_ultimo);
 	printf("size: %d\n", size);
 	
