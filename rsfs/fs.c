@@ -439,32 +439,40 @@ int fs_open(char *file_name, int mode) {
 
 	int i = buscar_arquivo(file_name);
 
-	if (i == 128) {
-		printf("Não existe arquivo com este nome.\n");
-		return -1;
-	}
-
+	/* Modo leitura */
 	if(mode == FS_R){
-		arq[i].first_block = dir[i].first_block;
-		//Estado Aberto
-		arq[i].estado = ABERTO;
-		arq[i].tamanho = dir[i].size;
-		return i;
-	}
-	else if(mode == FS_W){
-		if(fs_remove(file_name) == 0){
-			printf("Não foi possível remover o arquivo!\n");
+		if (i == 128) {
+			printf("Não existe arquivo com este nome.\n");
 			return -1;
 		}
+		arq[i].first_block = dir[i].first_block;
+		arq[i].estado = ABERTO;
+		arq[i].tamanho = dir[i].size;
+		int x = arq[i].tamanho;
+		if (x % 4096 == 0)
+			arq[i].n_blocos = x / 4096;
+		else
+			arq[i].n_blocos = x / 4096 + 1;
+		return i;
+	}
+	/* Modo escrita */
+	else if(mode == FS_W){
+		if (i != 128) {	/* Um arquivo pre-existente deve ser apagado e criado novamente */
+			if(fs_remove(file_name) == 0){
+				printf("Não foi possível remover o arquivo!\n");
+				return -1;
+			}
+		}
+		/* Mesmo que um arquivo nao exista, ele e criado caso o modo seja de escrita */
 		if(fs_create(file_name) == 0){
 			printf("Não foi possível criar o arquivo!\n");
 			return -1;
 		}
 
 		arq[i].first_block = dir[i].first_block;
-		//Estado Aberto
 		arq[i].estado = ABERTO;
 		arq[i].tamanho = 0;
+		arq[i].n_blocos = 1;
 		return i;
 
 	}

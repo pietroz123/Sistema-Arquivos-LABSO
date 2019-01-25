@@ -143,6 +143,9 @@ int main(int argc, char **argv)
 				printf("Uso: copyt <file> <real_file>\n");
 			}
 		}
+
+
+
 		else if (!strcmp(args[0], "fat")) {
 			imprimir_fat();
 		}
@@ -152,6 +155,24 @@ int main(int argc, char **argv)
 		else if (!strcmp(args[0], "arq")) {
 			imprimir_arq();
 		}
+		else if (!strcmp(args[0], "openr")) {
+			if (i == 2) {
+				fs_open(args[1], FS_R);
+			}
+			else {
+				printf("Uso: openr <file>\n");
+			}
+		}
+		else if (!strcmp(args[0], "openw")) {
+			if (i == 2) {
+				fs_open(args[1], FS_W);
+			}
+			else {
+				printf("Uso: openw <file>\n");
+			}
+		}
+
+
 		else {
 			printf("Comando inválido\n");
 		}
