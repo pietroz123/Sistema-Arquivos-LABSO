@@ -400,12 +400,6 @@ int fs_remove(char *file_name) {
 
 	int posicao = i;
 
-	/* Zera no diretório as informações do arquivo */
-	dir[posicao].used = 'N';
-	memset(dir[posicao].name, 0, 25);
-	dir[posicao].first_block = 0;
-	dir[posicao].size = 0;
-
 
 	/* Marca todos blocos daquele arquivo como Agrupamento Livre */
 	i = dir[posicao].first_block;
@@ -415,6 +409,13 @@ int fs_remove(char *file_name) {
 		i = posicao;
 	}
 	fat[i] = AGRUPAMENTO_LIVRE;	// Zera a última posição
+
+
+	/* Zera no diretório as informações do arquivo */
+	dir[posicao].used = 'N';
+	memset(dir[posicao].name, 0, 25);
+	dir[posicao].first_block = 0;
+	dir[posicao].size = 0;
 
 
 	/* Salva a FAT e o diretório */
@@ -521,6 +522,11 @@ int fs_close(int file) {
 /* bl_write sempre buffer de 512 bytes, aqui o buffer é de quanto quisermos */
 /* Retorna a quantidade de bytes escritos */
 int fs_write(char *buffer, int size, int file) {
+
+
+	printf("buffer: %s\n", buffer);
+	printf("size: %d\n", size);
+	printf("file: %d\n", file);
 	
 	
 	// Verifica se o arquivo está aberto
@@ -537,59 +543,90 @@ int fs_write(char *buffer, int size, int file) {
 		i = fat[i];
 	}
 	int ultimo_agrupamento = i;
-
-
-
+	printf("ultimo agrupamento: %d\n", ultimo_agrupamento);
+	
+	char conteudo[50];
+	
 	int tamanho_ultimo = arq[file].tamanho % CLUSTERSIZE;
-	while (tamanho_ultimo >= CLUSTERSIZE) {
+	int bytes = 0;
+	while (tamanho_ultimo <= CLUSTERSIZE && size > 0) {
 
-		// Calcula o tamanho efetivo (tamanho que podemos escrever)
-		int size_efetivo = CLUSTERSIZE - tamanho_ultimo;
+		char c = buffer[bytes];
+		bytes++;
 
-		// Escreve o que cabe no conteúdo do arquivo
-		int k = 0;
-		for(int j = tamanho_ultimo; j < size_efetivo; j++, k++)
-			if(j < size)
-				arq[file].conteudo[j] = buffer[k];
+		// Concatena byte a byte no conteudo do arquivo
+        int len = strlen(conteudo);
+        conteudo[len] = c;
+        conteudo[len+1] = '\0';
+		
 
-		// Salva no disco
-		if(salvar_disk(file, ultimo_agrupamento) == -1){
-			printf("Erro ao escrever no disco!\n");
-			return -1;
-		}
-
-		memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
-
-		// Procura por um agrupamento livre na FAT
-		i = 0;
-		while (fat[i] != AGRUPAMENTO_LIVRE && i < TAMANHO_FAT) {
-			i++;
-		}
-		fat[i] = ULTIMO_AGRUPAMENTO;
-		fat[ultimo_agrupamento] = i;
-		ultimo_agrupamento = i;
-
-		arq[file].n_blocos++;
+		tamanho_ultimo++;	// Aumenta a quantidade de bytes no ultimo agrupamento
+		size--;				// Diminui o numero de bytes lidos
 
 	}
-
-	// strncat(arq[file].conteudo, buffer, size);
-	int j = arq[file].tamanho;
-	for(int k = 0; k < size; k++, j++)
-		arq[file].conteudo[j] = buffer[k];
-
-
-	arq[file].tamanho += size;
+	
+	printf("conteudo: %s\n", conteudo);
+	printf("tamanho_ultimo: %d\n", tamanho_ultimo);
+	printf("size: %d\n", size);
+	
+	
 	
 	return size;
 
 
-	/* Salva a FAT e o diretório */
-	if (salvar_fat() == 0)
-		return -1;
 
-	if (salvar_dir() == 0)
-		return -1;
+
+
+	// int tamanho_ultimo = arq[file].tamanho % CLUSTERSIZE;
+	// while (tamanho_ultimo >= CLUSTERSIZE) {
+
+	// 	// Calcula o tamanho efetivo (tamanho que podemos escrever)
+	// 	int size_efetivo = CLUSTERSIZE - tamanho_ultimo;
+
+	// 	// Escreve o que cabe no conteúdo do arquivo
+	// 	int k = 0;
+	// 	for(int j = tamanho_ultimo; j < size_efetivo; j++, k++)
+	// 		if(j < size)
+	// 			arq[file].conteudo[j] = buffer[k];
+
+	// 	// Salva no disco
+	// 	if(salvar_disk(file, ultimo_agrupamento) == -1){
+	// 		printf("Erro ao escrever no disco!\n");
+	// 		return -1;
+	// 	}
+
+	// 	memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
+
+	// 	// Procura por um agrupamento livre na FAT
+	// 	i = 0;
+	// 	while (fat[i] != AGRUPAMENTO_LIVRE && i < TAMANHO_FAT) {
+	// 		i++;
+	// 	}
+	// 	fat[i] = ULTIMO_AGRUPAMENTO;
+	// 	fat[ultimo_agrupamento] = i;
+	// 	ultimo_agrupamento = i;
+
+	// 	arq[file].n_blocos++;
+
+	// }
+
+	// // strncat(arq[file].conteudo, buffer, size);
+	// int j = arq[file].tamanho;
+	// for(int k = 0; k < size; k++, j++)
+	// 	arq[file].conteudo[j] = buffer[k];
+
+
+	// arq[file].tamanho += size;
+	
+	// return size;
+
+
+	// /* Salva a FAT e o diretório */
+	// if (salvar_fat() == 0)
+	// 	return -1;
+
+	// if (salvar_dir() == 0)
+	// 	return -1;
 
 }
 

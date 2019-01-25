@@ -171,7 +171,18 @@ int main(int argc, char **argv)
 				printf("Uso: openw <file>\n");
 			}
 		}
-
+		else if (!strcmp(args[0], "write")) {
+			if (i == 2) {
+				char buffer[50];
+				scanf("%[^\n]s", buffer);
+				getchar();
+				printf("buffer: %s\n", buffer);
+				fs_write(buffer, strlen(buffer), fs_open(args[1], FS_W));
+			}
+			else {
+				printf("Uso: write <file>\n");
+			}
+		}
 
 		else {
 			printf("Comando inválido\n");

@@ -13,3 +13,5 @@ shell.o: disk.h fs.h
 .PHONY : clean
 clean:
 	rm -f *.o *~ rsfs
+
+# gcc -g shell.c disk.c disk.h fs.c fs.h -o t1
