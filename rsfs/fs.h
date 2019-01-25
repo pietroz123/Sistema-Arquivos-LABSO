@@ -38,3 +38,4 @@ int fs_read(char *buffer, int size, int file);
 //!
 void imprimir_fat();
 void imprimir_dir();
+void imprimir_arq();

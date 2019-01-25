@@ -85,7 +85,13 @@ void imprimir_fat() {
 void imprimir_dir() {
 	printf("used | name | first_block | size\n");
 	for (int i = 0; i < 128; i++) {
-		printf("%c %s %d %d\n", dir[i].used, dir[i].name, dir[i].first_block, dir[i].size);
+		printf("  %c    %s       %d        %d    \n", dir[i].used, dir[i].name, dir[i].first_block, dir[i].size);
+	}
+}
+void imprimir_arq() {
+	printf("estado | first_block | conteudo | tamanho | indice_relativo | n_blocos\n");
+	for (int i = 0; i < 128; i++) {
+		printf("  %d           %d                    %s   %d           %d             %d\n", arq[i].estado, arq[i].first_block, arq[i].conteudo, arq[i].tamanho, arq[i].indice_relativo, arq[i].n_blocos);
 	}
 }
 
@@ -394,9 +400,11 @@ int fs_remove(char *file_name) {
 
 	int posicao = i;
 
-	/* Zera no diretório as informações do arquiv */
+	/* Zera no diretório as informações do arquivo */
 	dir[posicao].used = 'N';
 	memset(dir[posicao].name, 0, 25);
+	dir[posicao].first_block = 0;
+	dir[posicao].size = 0;
 
 
 	/* Marca todos blocos daquele arquivo como Agrupamento Livre */

@@ -149,6 +149,9 @@ int main(int argc, char **argv)
 		else if (!strcmp(args[0], "dir")) {
 			imprimir_dir();
 		}
+		else if (!strcmp(args[0], "arq")) {
+			imprimir_arq();
+		}
 		else {
 			printf("Comando inválido\n");
 		}
