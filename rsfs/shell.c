@@ -173,7 +173,7 @@ int main(int argc, char **argv)
 		}
 		else if (!strcmp(args[0], "write")) {
 			if (i == 2) {
-				char buffer[50];
+				char buffer[4096];
 				scanf("%[^\n]s", buffer);
 				getchar();
 				printf("buffer: %s\n", buffer);

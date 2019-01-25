@@ -522,12 +522,6 @@ int fs_close(int file) {
 /* bl_write sempre buffer de 512 bytes, aqui o buffer é de quanto quisermos */
 /* Retorna a quantidade de bytes escritos */
 int fs_write(char *buffer, int size, int file) {
-
-
-	printf("buffer: %s\n", buffer);
-	printf("size: %d\n", size);
-	printf("file: %d\n", file);
-	
 	
 	// Verifica se o arquivo está aberto
 	if (arq[file].estado == FECHADO){
@@ -535,7 +529,8 @@ int fs_write(char *buffer, int size, int file) {
 		return -1;
 	}
 
-	dir[file].size += size;
+	// dir[file].size += size;
+	int bytes_escritos = 0;
 
 	//Procurar pelo último bloco do arquivo
 	int i = arq[file].first_block;
@@ -543,237 +538,101 @@ int fs_write(char *buffer, int size, int file) {
 		i = fat[i];
 	}
 	int ultimo_agrupamento = i;
-	printf("ultimo agrupamento: %d\n", ultimo_agrupamento);
-	
-	
+
+    
 	int tamanho_ultimo = arq[file].tamanho % CLUSTERSIZE;
-	int bytes = 0;
-	while (tamanho_ultimo <= CLUSTERSIZE && size > 0) {
+	while (tamanho_ultimo >= CLUSTERSIZE) {
 
-		char c = buffer[bytes];
-		bytes++;
+		// Calcula o tamanho efetivo (tamanho que podemos escrever)
+		int size_efetivo = CLUSTERSIZE - tamanho_ultimo;
 
-		// Concatena byte a byte no conteudo do arquivo
-        int len = strlen(arq[file].conteudo);
-        arq[file].conteudo[len] = c;
-        arq[file].conteudo[len+1] = '\0';
-		
+		// Escreve o que cabe no conteúdo do arquivo
+		int k = 0;
+		for(int j = tamanho_ultimo; j < size_efetivo; j++, k++) {
+			if(j < size) {
+				arq[file].conteudo[j] = buffer[k];
+				bytes_escritos++;
+			}
+		}
 
-		tamanho_ultimo++;	// Aumenta a quantidade de bytes no ultimo agrupamento
-		size--;				// Diminui o numero de bytes lidos
+		// Salva no disco
+		if(salvar_disk(file, ultimo_agrupamento) == -1){
+			printf("Erro ao escrever no disco!\n");
+			return -1;
+		}
+
+		memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
+
+		if (tamanho_ultimo == CLUSTERSIZE) {
+			// Procura por um agrupamento livre na FAT
+			i = 0;
+			while (fat[i] != AGRUPAMENTO_LIVRE && i < TAMANHO_FAT) {
+				i++;
+			}
+			fat[i] = ULTIMO_AGRUPAMENTO;
+			fat[ultimo_agrupamento] = i;
+			ultimo_agrupamento = i;
+
+			arq[file].n_blocos++;
+		}
 
 	}
-	
-	printf("conteudo: %s\n", arq[file].conteudo);
-	printf("tamanho_ultimo: %d\n", tamanho_ultimo);
-	printf("size: %d\n", size);
-	
-	
+
+	// strncat(arq[file].conteudo, buffer, size);
+	int j = arq[file].tamanho;
+	for(int k = 0; k < size; k++, j++) {
+		arq[file].conteudo[j] = buffer[k];
+		bytes_escritos++;
+	}
+
+	dir[file].size += bytes_escritos;
+	arq[file].tamanho += bytes_escritos;
 	
 	return size;
 
 
+	/* Salva a FAT e o diretório */
+	if (salvar_fat() == 0)
+		return -1;
 
-
-
-	// int tamanho_ultimo = arq[file].tamanho % CLUSTERSIZE;
-	// while (tamanho_ultimo >= CLUSTERSIZE) {
-
-	// 	// Calcula o tamanho efetivo (tamanho que podemos escrever)
-	// 	int size_efetivo = CLUSTERSIZE - tamanho_ultimo;
-
-	// 	// Escreve o que cabe no conteúdo do arquivo
-	// 	int k = 0;
-	// 	for(int j = tamanho_ultimo; j < size_efetivo; j++, k++)
-	// 		if(j < size)
-	// 			arq[file].conteudo[j] = buffer[k];
-
-	// 	// Salva no disco
-	// 	if(salvar_disk(file, ultimo_agrupamento) == -1){
-	// 		printf("Erro ao escrever no disco!\n");
-	// 		return -1;
-	// 	}
-
-	// 	memset(arq[file].conteudo, 0, CLUSTERSIZE+1);
-
-	// 	// Procura por um agrupamento livre na FAT
-	// 	i = 0;
-	// 	while (fat[i] != AGRUPAMENTO_LIVRE && i < TAMANHO_FAT) {
-	// 		i++;
-	// 	}
-	// 	fat[i] = ULTIMO_AGRUPAMENTO;
-	// 	fat[ultimo_agrupamento] = i;
-	// 	ultimo_agrupamento = i;
-
-	// 	arq[file].n_blocos++;
-
-	// }
-
-	// // strncat(arq[file].conteudo, buffer, size);
-	// int j = arq[file].tamanho;
-	// for(int k = 0; k < size; k++, j++)
-	// 	arq[file].conteudo[j] = buffer[k];
-
-
-	// arq[file].tamanho += size;
-	
-	// return size;
-
-
-	// /* Salva a FAT e o diretório */
-	// if (salvar_fat() == 0)
-	// 	return -1;
-
-	// if (salvar_dir() == 0)
-	// 	return -1;
+	if (salvar_dir() == 0)
+		return -1;
 
 }
-
-// ===================================================================================================
-
-// int fs_write(char *buffer, int size, int file) {
-	
-	
-// 	// Verifica se o arquivo está aberto
-// 	if (arq[file].estado == FECHADO){
-// 		printf("Arquivo não está aberto!\n");
-// 		return -1;
-// 	}
-
-// 	dir[file].size += size;
-
-//     // if(arq[file].estado == ABERTO){
-//     //     if(arq[file].indice_relativo + size < CLUSTERSIZE){
-//     //         strcat(arq[file].conteudo, buffer);
-    
-//     //     arq[file].indice_relativo += size;
-
-//     //     //menset
-//     //     for(int i = 0; i < size; i++)
-//     //         buffer[i] = '\0';
-
-//     //     }
-//     //     else{
-// 			printf("entrou no else");
-// 			strncat(arq[file].conteudo, buffer, (CLUSTERSIZE - arq[file].indice_relativo)); 
-
-//             // Zera o buffer
-//             for(int i = 0; i < size; i++)
-//                 buffer[i] = '\0';
-
-// 			int bloco_atual = arq[file].first_block;
-// 			printf("bloco atual: %d\n", bloco_atual);
-
-//             salvar_disk(file, bloco_atual); // BLOCO ATUAL?
-
-//             // Zera o buffer
-//             for(int i = 0; i < CLUSTERSIZE; i++)
-//                 arq[file].conteudo[i] = '\0';
-
-//             strcat(arq[file].conteudo, &buffer[CLUSTERSIZE - arq[file].indice_relativo]);
-//             arq[file].indice_relativo = CLUSTERSIZE - arq[file].indice_relativo;
-
-//             // Agrupamento Livre
-// 			for(int i = 33; i < TAMANHO_FAT; i++){
-//                 if(fat[i] == AGRUPAMENTO_LIVRE){
-// 					fat[bloco_atual] = i;
-// 					fat[i] = ULTIMO_AGRUPAMENTO;
-// 					break;
-//                 }
-//             }
-
-//             salvar_fat();
-
-//             salvar_dir();
-
-//             salvar_disk(file, bloco_atual);
-
-// 			bloco_atual = fat[bloco_atual];
-//     //     }
-//     // }
-
-//     return size;
-// }
-// ===================================================================================================
 
 /* carrega da memória para o buffer */
 /* detalhe: precisamos verificar se o tamanho que queremos ler cabe no tamanho do arquivo */
 /* retorna quantidade de bytes EFETIVAMENTE lidos */
-// int fs_read(char *buffer, int size, int file) {
+int fs_read(char *buffer, int size, int file) {
 
-// 	int byteslidos = 0;
-
-// 	// Verifica se o arquivo está aberto
-// 	if (arq[file].estado == ABERTO) {
-
-// 		// Limpa o buffer
-// 		memset(buffer, 0, size);
-
-// 		int bloco_atual = arq[file].first_block;
-
-// 		int i = 0;
-// 		int tamanho_bloco_atual = arq[file].tamanho % CLUSTERSIZE;
-
-// 		for (i = 0; i < size; i++) {
-// 			if (tamanho_bloco_atual > CLUSTERSIZE) {
-// 				if (ler_disk(file, bloco_atual) == -1) {
-// 					printf("Erro na leitura\n");
-// 					return -1;
-// 				}
-// 				buffer[i] = arq[file].conteudo[i];
-// 			}
-// 			bloco_atual = fat[bloco_atual];
-
-// 		}
-// 		if (arq[file].tamanho == dir[file].size) {
-// 			return byteslidos;
-// 		}
-// 	}
-// 	return -1;
-
-// }
-
-int fs_read(char *buffer, int size, int file)
-{
-
+	int byteslidos = 0;
 
 	// Verifica se o arquivo está aberto
-	if (arq[file].estado == ABERTO)
-	{
+	if (arq[file].estado == ABERTO) {
 
 		// Limpa o buffer
 		memset(buffer, 0, size);
 
 		int bloco_atual = arq[file].first_block;
-		int byteslidos = 0;
-		int i = 0;
 
-		for (i = 0; i < size; i++)
-		{
-			if (arq[file].indice_relativo + size > CLUSTERSIZE)
-			{
-				bloco_atual = fat[bloco_atual];
-				if (ler_disk(file, bloco_atual) == -1)
-				{
+		int i = 0;
+		int tamanho_bloco_atual = arq[file].tamanho % CLUSTERSIZE;
+
+		for (i = 0; i < size; i++) {
+			if (tamanho_bloco_atual > CLUSTERSIZE) {
+				if (ler_disk(file, bloco_atual) == -1) {
 					printf("Erro na leitura\n");
 					return -1;
 				}
-				arq[file].indice_relativo = 0;
+				buffer[i] = arq[file].conteudo[i];
 			}
+			bloco_atual = fat[bloco_atual];
 
-			if (arq[file].tamanho == dir[file].size)
-			{
-				return byteslidos;
-			}
-
-			buffer[i] = arq[file].conteudo[arq[file].indice_relativo];
-			arq[file].indice_relativo++;
-			arq[file].tamanho++;
-			byteslidos++;
 		}
-		return size;
+		if (arq[file].tamanho == dir[file].size) {
+			return byteslidos;
+		}
 	}
-	printf("Arquivo nao se encontra em modo de leitura\n");
-
 	return -1;
+
 }
