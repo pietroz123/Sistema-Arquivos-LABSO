@@ -358,7 +358,6 @@ int fs_create(char *file_name) {
 	// Atualiza as informações do arquivo
 	arq[posicao].estado = FECHADO;
 	arq[posicao].first_block = i;
-	arq[posicao].n_blocos = 1;
 	arq[posicao].tamanho = 0;
 
 
@@ -449,11 +448,6 @@ int fs_open(char *file_name, int mode) {
 		arq[i].first_block = dir[i].first_block;
 		arq[i].estado = ABERTO;
 		arq[i].tamanho = dir[i].size;
-		int x = arq[i].tamanho;
-		if (x % 4096 == 0)
-			arq[i].n_blocos = x / 4096;
-		else
-			arq[i].n_blocos = x / 4096 + 1;
 		return i;
 	}
 	/* Modo escrita */
@@ -473,7 +467,6 @@ int fs_open(char *file_name, int mode) {
 		arq[i].first_block = dir[i].first_block;
 		arq[i].estado = ABERTO;
 		arq[i].tamanho = 0;
-		arq[i].n_blocos = 1;
 		return i;
 
 	}
@@ -573,7 +566,6 @@ int fs_write(char *buffer, int size, int file) {
 			fat[ultimo_agrupamento] = i;
 			ultimo_agrupamento = i;
 
-			arq[file].n_blocos++;
 		}
 
 	}
@@ -588,7 +580,6 @@ int fs_write(char *buffer, int size, int file) {
 	dir[file].size += bytes_escritos;
 	arq[file].tamanho += bytes_escritos;
 	
-	return size;
 
 
 	/* Salva a FAT e o diretório */
@@ -597,6 +588,8 @@ int fs_write(char *buffer, int size, int file) {
 
 	if (salvar_dir() == 0)
 		return -1;
+	
+    return bytes_escritos;
 
 }
 

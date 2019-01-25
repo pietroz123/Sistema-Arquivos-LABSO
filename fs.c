@@ -568,7 +568,7 @@ int fs_write(char *buffer, int size, int file) {
 	if (salvar_dir() == 0)
 		return -1;
 	
-    return size;
+    return bytes_escritos;
 
 }
 
